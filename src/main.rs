@@ -23,6 +23,10 @@ use tui::Terminal;
 mod event;
 use event::*;
 
+fn count_newlines(s: &str) -> usize {
+    s.as_bytes().iter().filter(|&&c| c == b'\n').count()
+}
+
 fn main() -> Result<(), Error> {
     let ctx = r2r::Context::create()?;
     let mut node = r2r::Node::create(ctx, "echo", "")?;
@@ -70,37 +74,64 @@ fn main() -> Result<(), Error> {
     let events = Events::new();
 
     let mut last_seen = String::new();
+    let mut scroll = 0;
     loop {
         node.spin_once(std::time::Duration::from_millis(20));
 
-        terminal
-            .draw(|mut f| {
-                let size = f.size();
+        terminal.draw(|mut f| {
+            let size = f.size();
 
-                let str = display.borrow().to_owned();
+            let str = display.borrow().to_owned();
 
-                let bg = if last_seen != str {
-                    last_seen = str.clone();
-                    Color::Green
-                } else {
-                    Color::White
-                };
+            let fg = if last_seen != str {
+                last_seen = str.clone();
+                Color::DarkGray
+            } else {
+                Color::Black
+            };
 
-                let text = [Text::raw(&str)];
-                let title = format!("topic: {}, type: {}", topic, type_name);
+            let text = [Text::raw(&str)];
+            let title = format!("topic: {}, type: {}", topic, type_name);
 
-                let block = Block::default()
-                    .borders(Borders::ALL)
-                    .title_style(Style::default().modifier(Modifier::BOLD));
-                Paragraph::new(text.iter())
-                    .block(block.clone().title(&title))
-                    .alignment(Alignment::Left)
-                    .style(Style::default().bg(bg))
-                    .render(&mut f, size);
-            })?;
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .title_style(Style::default().modifier(Modifier::BOLD).fg(fg));
+            Paragraph::new(text.iter())
+                .block(block.clone().title(&title))
+                .alignment(Alignment::Left)
+                .style(Style::default())
+                .scroll(scroll)
+                .render(&mut f, size);
+        })?;
+
+        let size = terminal.size()?;
+        let msg_lines = count_newlines(&last_seen) as u16;
 
         match events.next()? {
             Event::Input(key) => {
+                if key == Key::PageUp {
+                    if scroll < size.height - 3 {
+                        scroll = 0;
+                    } else {
+                        scroll -= size.height - 3;
+                    }
+                }
+                if key == Key::PageDown {
+                    scroll += size.height + 3;
+                    if scroll > (msg_lines - size.height + 3) {
+                        scroll = msg_lines - size.height + 3
+                    };
+                }
+                if key == Key::Up {
+                    if scroll > 0 {
+                        scroll -= 1;
+                    }
+                }
+                if key == Key::Down {
+                    if scroll < (msg_lines - size.height + 3) {
+                        scroll += 1
+                    };
+                }
                 if key == Key::Char('q') {
                     break;
                 }
