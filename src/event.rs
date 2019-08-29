@@ -1,3 +1,5 @@
+// Copied from tui examples
+
 use std::io;
 use std::sync::mpsc;
 use std::thread;
