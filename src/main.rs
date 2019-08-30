@@ -58,9 +58,11 @@ fn main() -> Result<(), Error> {
     let display = Rc::new(RefCell::new(String::new()));
     let display_cb = display.clone();
 
-    let cb = move |msg: serde_json::Value| {
-        let s = serde_json::to_string_pretty(&msg).unwrap();
-        *display_cb.borrow_mut() = s;
+    let cb = move |msg: r2r::Result<serde_json::Value>| {
+        if let Ok(msg) = msg {
+            let s = serde_json::to_string_pretty(&msg).unwrap();
+            *display_cb.borrow_mut() = s;
+        }
     };
 
     let _subref = node.subscribe_untyped(topic, type_name, Box::new(cb))?;
