@@ -87,9 +87,9 @@ fn main() -> Result<(), Error> {
 
             let fg = if last_seen != str {
                 last_seen = str.clone();
-                Color::DarkGray
+                Color::Green
             } else {
-                Color::Black
+                Color::Reset
             };
 
             let text = [Text::raw(&str)];
